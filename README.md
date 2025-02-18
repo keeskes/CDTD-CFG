@@ -1,6 +1,6 @@
 # Continuous Diffusion for Mixed-Type Tabular Data
 
-This is a wrapper around the training and sampling procedures of the CDTD model.
+This is an easy-to-use wrapper around the training and sampling procedures of the CDTD model.
 Please see `main.ipynb` for an illustration of the CDTD on the adult dataset.
 
 Paper: https://arxiv.org/abs/2312.10431 (published in ICLR 2025)
