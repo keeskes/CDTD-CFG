@@ -7,8 +7,8 @@ from torch import nn
 from torch_ema import ExponentialMovingAverage
 from tqdm import tqdm
 
-from layers import MLP, CatEmbedding, Timewarp_Logistic, WeightNetwork
-from utils import (
+from .layers import MLP, CatEmbedding, Timewarp_Logistic, WeightNetwork
+from .utils import (
     FastTensorDataLoader,
     LinearScheduler,
     cycle,
