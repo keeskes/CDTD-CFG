@@ -95,7 +95,7 @@ class MixedTypeDiffusion(nn.Module):
     def device(self):
         return next(self.model.parameters()).device
 
-    def diffusion_loss(self, x_cat_0, x_cont_0, cat_logits, cont_preds, sigma):
+    def diffusion_loss(self, x_cat_0, x_cont_0, cat_logits, cont_preds):
         assert len(cat_logits) == self.num_cat_features
         assert cont_preds.shape == x_cont_0.shape
 
@@ -143,7 +143,7 @@ class MixedTypeDiffusion(nn.Module):
         x_cat_emb_t, x_cont_t = self.add_noise(x_cat_emb_0, x_cont_0, sigma)
         cat_logits, cont_preds = self.precondition(x_cat_emb_t, x_cont_t, u, sigma)
         ce_losses, mse_losses = self.diffusion_loss(
-            x_cat_0, x_cont_0, cat_logits, cont_preds, sigma
+            x_cat_0, x_cont_0, cat_logits, cont_preds
         )
 
         # compute EDM weight
