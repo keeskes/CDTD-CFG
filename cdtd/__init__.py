@@ -482,6 +482,7 @@ class CDTD: # The all encompassing class we can call containing all training and
         with tqdm(
             initial=self.current_step,
             total=num_steps_train,
+            miniters=100,
         ) as pbar: # Initializing a progress bar
             while self.current_step < num_steps_train:
                 self.optimizer.zero_grad() # The pytorch gradients accumulate by default, so we delete them before backpropagation
