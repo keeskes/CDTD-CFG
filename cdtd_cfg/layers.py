@@ -293,16 +293,23 @@ class MLP(nn.Module):
         n_layers, # number of layers
         n_units, # size of layers
         act="relu", #activation function
-        num_classes_1,
-        num_classes_2
+        num_classes_1 = None,
+        num_classes_2 = None
     ):
         super().__init__()
 
         num_cat_features = len(categories)
         # embedding created for timestep t, used to condition network each step on time
         self.time_emb = TimeStepEmbedding(emb_dim, fourier=False) 
-        self.cond_embed_1 = Label_Embedding(num_classes_1, emb_dim)
-        self.cond_embed_2 = Label_Embedding(num_classes_2, emb_dim)        
+        if num_classes_1 is not None:
+            self.cond_embed_1 = Label_Embedding(num_classes_1, emb_dim)
+        else:
+            self.cond_embed_1 = None
+
+        if num_classes_2 is not None:
+            self.cond_embed_2 = Label_Embedding(num_classes_2, emb_dim)
+        else:
+            self.cond_embed_2 = None
 
         in_dims = [emb_dim] + (n_layers - 1) * [n_units] # Input dimension defined for first layer
         out_dims = n_layers * [n_units] # Then afterwards we use n layers with n units each
