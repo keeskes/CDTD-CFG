@@ -464,8 +464,8 @@ class CDTD: # The all encompassing class we can call containing all training and
         if cfg:     
             num_classes_1 = len(np.unique(y_condition_1.numpy()))
             num_classes_2 = len(np.unique(y_condition_2.numpy()))
-            print(f"[DEBUG] num_classes_1 (label_1 '{label_1}'): {num_classes_1}")
-            print(f"[DEBUG] num_classes_2 (label_2 '{label_2}'): {num_classes_2}")
+            print(f"[DEBUG] num_classes_1: {num_classes_1}")
+            print(f"[DEBUG] num_classes_2: {num_classes_2}")
 
         score_model = MLP( # MLP is called to train the score NN. 
             self.num_cont_features,
