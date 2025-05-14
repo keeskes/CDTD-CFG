@@ -157,7 +157,7 @@ class MixedTypeDiffusion(nn.Module):
 
         x_cat_emb_t, x_cont_t = self.add_noise(x_cat_emb_0, x_cont_0, sigma) # Noise is added to the data
         # Model outputs based on noised data, u, sigma and the class labels
-        cat_logits, cont_preds = self.precondition(x_cat_emb_t, x_cont_t, u, sigma, cfg = cfg, y_condition_1=y_condition_1, y_condition_2=y_condition_2) 
+        cat_logits, cont_preds = self.precondition(x_cat_emb_t, x_cont_t, u, sigma, cfg = False, y_condition_1=None, y_condition_2=None) 
         ce_losses, mse_losses = self.diffusion_loss( 
             x_cat_0, x_cont_0, cat_logits, cont_preds 
         ) # The ce and mse losses are computed based on the predictions
