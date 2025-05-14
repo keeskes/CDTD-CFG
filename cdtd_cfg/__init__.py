@@ -350,8 +350,8 @@ class MixedTypeDiffusion(nn.Module):
                     y_condition_1=y_condition_1,
                     y_condition_2=None
                 )
-                d_cat_con_1, _ = self.score_interpolation(x_cat_next, cat_logits, t_cur) # categorical score vector
-                d_cont_con_1 = (x_cont_next - x_cont_denoised.to(torch.float64)) / t_cont_cur # continuous score vector
+                d_cat_con_1, _ = self.score_interpolation(x_cat_next, cat_logits_1, t_cur) # categorical score vector
+                d_cont_con_1 = (x_cont_next - x_cont_denoised_1.to(torch.float64)) / t_cont_cur # continuous score vector
                 
                 cat_logits_2, x_cont_denoised_2 = self.precondition(
                     x_cat_emb_t=x_cat_next.to(torch.float32),
@@ -362,8 +362,8 @@ class MixedTypeDiffusion(nn.Module):
                     y_condition_1=None,
                     y_condition_2=y_condition_2
                 )
-                d_cat_con_2, _ = self.score_interpolation(x_cat_next, cat_logits, t_cur) # categorical score vector
-                d_cont_con_2 = (x_cont_next - x_cont_denoised.to(torch.float64)) / t_cont_cur # continuous score vector
+                d_cat_con_2, _ = self.score_interpolation(x_cat_next, cat_logits_2, t_cur) # categorical score vector
+                d_cont_con_2 = (x_cont_next - x_cont_denoised_2.to(torch.float64)) / t_cont_cur # continuous score vector
                 
                 # Combining the categorical and continuous score vectors
                 d_cat_cur = d_cat_unc + cfg_scale * (d_cat_con_1 * 0.5 + d_cat_con_2 * 0.5 - d_cat_unc) 
