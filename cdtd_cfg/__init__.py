@@ -367,7 +367,7 @@ class MixedTypeDiffusion(nn.Module):
                 
                 # Combining the categorical and continuous score vectors
                 d_cat_cur = d_cat_unc + cfg_scale * (d_cat_con_1 * 0.5 + d_cat_con_2 * 0.5 - d_cat_unc) 
-                d_cont_cur = d_cont_unc + cfg_scale * (d_cont_con_1 * 0.5 + d_cont_con_2 * 0.5 - d_cat_unc) 
+                d_cont_cur = d_cont_unc + cfg_scale * (d_cont_con_1 * 0.5 + d_cont_con_2 * 0.5 - d_cont_unc) 
                 
             else:
                 cat_logits, x_cont_denoised = self.precondition(
@@ -464,9 +464,7 @@ class CDTD: # The all encompassing class we can call containing all training and
         if cfg:     
             num_classes_1 = len(np.unique(y_condition_1.numpy()))
             num_classes_2 = len(np.unique(y_condition_2.numpy()))
-            print(f"[DEBUG] num_classes_1: {num_classes_1}")
-            print(f"[DEBUG] num_classes_2: {num_classes_2}")
-
+                    
         score_model = MLP( # MLP is called to train the score NN. 
             self.num_cont_features,
             self.cat_emb_dim,
@@ -475,8 +473,8 @@ class CDTD: # The all encompassing class we can call containing all training and
             mlp_emb_dim,
             mlp_n_layers,
             mlp_n_units,
-            num_classes_1,
-            num_classes_2
+            num_classes_1 = num_classes_1,
+            num_classes_2 = num_classes_2
         )
 
         self.diff_model = MixedTypeDiffusion( # The mixed diffusion model is subsequently trained
