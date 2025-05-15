@@ -80,7 +80,7 @@ class TimeStepEmbedding(nn.Module):
     def forward(self, timesteps):
         if not self.fourier:
             d, T = self.dim, self.max_period
-            mid = d // `2
+            mid = d // 2
             
             fs = torch.exp(-math.log(T) / mid * torch.arange(mid, dtype=torch.float32)) 
             fs = fs.to(timesteps.device)
