@@ -15,4 +15,6 @@ Activate environment via `source .venv/bin/activate` (on Linux).
 Install packages via `pip install -r requirements.txt`.
 
 
-## Citation
+## Current outpus
+
+https://colab.research.google.com/drive/1nkOXg5gkHuoQGzxT2msDF_S_ZMHpNCWr#scrollTo=HucFULEBY3Da
