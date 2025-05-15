@@ -138,7 +138,7 @@ class MixedTypeDiffusion(nn.Module):
 
         return x_cat_emb_t, x_cont_t
 
-    def loss_fn(self, x_cat, x_cont, u=None, cfg = False, y_condition_1=None, y_condition_2=None):
+    def loss_fn(self, x_cat, x_cont, u=None, dropout = 0.0, cfg = False, y_condition_1=None, y_condition_2=None):
         batch = x_cat.shape[0] if x_cat is not None else x_cont.shape[0]
 
         # get ground truth data
@@ -157,7 +157,30 @@ class MixedTypeDiffusion(nn.Module):
 
         x_cat_emb_t, x_cont_t = self.add_noise(x_cat_emb_0, x_cont_0, sigma) # Noise is added to the data
         # Model outputs based on noised data, u, sigma and the class labels
-        cat_logits, cont_preds = self.precondition(x_cat_emb_t, x_cont_t, u, sigma, cfg = False, y_condition_1=None, y_condition_2=None) 
+
+        if cfg:
+            random_vals = torch.rand(batch, device=x_cat_emb_t.device)
+
+            # unconditional dropout mask
+            unconditional_mask = random_vals < dropout
+            conditional_mask = ~unconditional_mask
+
+            # for conditional samples, decide between label 1 or label 2
+            label_1_mask = (random_vals >= dropout) & (random_vals < dropout + 0.5 * (1 - dropout))
+            label_2_mask = (random_vals >= dropout + 0.5 * (1 - dropout))
+
+            # unconditional, set both to 0
+            y_condition_1[unconditional_mask] = 0
+            y_condition_2[unconditional_mask] = 0
+
+            # only label 1, set label 2 to 0
+            y_condition_2[label_1_mask] = 0
+
+            # only label 2, set label 1 to 0
+            y_condition_1[label_2_mask] = 0
+      
+        cat_logits, cont_preds = self.precondition(x_cat_emb_t, x_cont_t, u, sigma, 
+                                                   cfg, y_condition_1, y_condition_2) 
         ce_losses, mse_losses = self.diffusion_loss( 
             x_cat_0, x_cont_0, cat_logits, cont_preds 
         ) # The ce and mse losses are computed based on the predictions
@@ -508,7 +531,7 @@ class CDTD: # The all encompassing class we can call containing all training and
         cfg = False, 
         y_condition_1=None, 
         y_condition_2=None,
-        dropout_ratio = 1,
+        dropout = 1,
         condition_1_ratio = 0,
         condition_2_ratio = 0
     ):
@@ -521,6 +544,8 @@ class CDTD: # The all encompassing class we can call containing all training and
             batch_size=batch_size,
             shuffle=True,
             drop_last=True,
+            y_condition_1=y_condition_1,
+            y_condition_2=y_condition_2
         ) # Fast tensor batching, the dataloader is wrapped by cycle to make an infinite iterator
         train_iter = cycle(train_loader)
 
@@ -556,13 +581,14 @@ class CDTD: # The all encompassing class we can call containing all training and
                 self.optimizer.zero_grad() # The pytorch gradients accumulate by default, so we delete them before backpropagation
 
                 inputs = next(train_iter)
-                x_cat, x_cont = (
+                x_cat, x_cont, y_cond_1_batch, y_cond_2_batch = (
                     input.to(self.device) if input is not None else None
                     for input in inputs
                 ) # Get a batch and move it to the device
 
                 # Compute the losses (CE, MSE, timewarp, weightnet)
-                losses, _ = self.diff_model.loss_fn(x_cat, x_cont, None, cfg, y_condition_1, y_condition_2) 
+                losses, _ = self.diff_model.loss_fn(x_cat, x_cont, None, 
+                                                    dropout, cfg, y_condition_1=y_cond_1_batch, y_condition_2=y_cond_2_batch) 
                 losses["train_loss"].backward() # Backpropagation is performed (to compute gradients)
 
                 # update parameters, updating the model weights, as well as the ema for learned timewarp params and model weights
