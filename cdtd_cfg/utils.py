@@ -87,13 +87,16 @@ class FastTensorDataLoader:
     """
     # So a custom dataloader used for tensors. Avoiding the overhead of the default pytorch Dataloader which is slow with large batches
 
-    def __init__(self, X_cat, X_cont, batch_size=32, shuffle=False, drop_last=False):
+    def __init__(self, X_cat, X_cont, batch_size=32, shuffle=False, drop_last=False, y_condition_1 = None, y_condition_2 = None,):
         self.dataset_len = X_cat.shape[0] if X_cat is not None else X_cont.shape[0] # dataset length is initalized
         assert all( # All tensors need to have the same length 
             t.shape[0] == self.dataset_len for t in (X_cat, X_cont) if t is not None
         )
         self.X_cat = X_cat
         self.X_cont = X_cont
+        
+        self.y_condition_1 = y_condition_1
+        self.y_condition_2 = y_condition_2
 
         self.batch_size = batch_size
         self.shuffle = shuffle # Whether to shuffle rows each epoch
@@ -135,6 +138,16 @@ class FastTensorDataLoader:
                 if self.X_cont is not None
                 else None
             )
+            batch["y_cond_1_batch"] = (
+                torch.index_select(self.y_condition_1, 0, indices)
+                if self.y_condition_1 is not None
+                else None
+            )
+            batch["y_cond_2_batch"] = (
+                torch.index_select(self.y_condition_2, 0, indices)
+                if self.y_condition_2 is not None
+                else None
+            )
 
         else: # If non shuffled, we simply return the next batch (of size batch_size) directly
             batch = {}
@@ -146,6 +159,16 @@ class FastTensorDataLoader:
             batch["X_cont"] = (
                 self.X_cont[self.i : self.i + self.batch_size]
                 if self.X_cont is not None
+                else None
+            )
+            batch["y_cond_1_batch"] = (
+                self.y_condition_1[self.i : self.i + self.batch_size]
+                if self.y_condition_1 is not None
+                else None
+            )
+            batch["y_cond_2_batch"] = (
+                self.y_condition_2[self.i : self.i + self.batch_size]
+                if self.y_condition_2 is not None
                 else None
             )
 
