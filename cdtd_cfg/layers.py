@@ -92,7 +92,7 @@ class TimeStepEmbedding(nn.Module):
             x = timesteps.ger((2 * torch.pi * self.freqs).to(timesteps.dtype))
             emb = torch.cat([x.cos(), x.sin()], dim=1)
 
-            return self.fc(emb)
+        return self.fc(emb)
 
 class Label_Embedding(nn.Module):
     """
