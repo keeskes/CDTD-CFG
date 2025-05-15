@@ -357,21 +357,26 @@ class MLP(nn.Module):
             use_label_2 = (mask >= cutoff2)
 
             if y_condition_1 is not None:
-               if y_condition_1.shape[0] != batch_size:
-                   raise ValueError(
-                   f"y_condition_1 shape mismatch: expected ({batch_size},), "
-                   )
-               label_1_emb = self.cond_embed_1(y_condition_1)
-               label_1_emb[~use_label_1] = 0.0  # Setting the embeddings to a zero vector when use_label_1 does not apply
-               cond_emb = cond_emb + label_1_emb
+                if y_condition_1.shape[0] != batch_size:
+                    raise ValueError(
+                    f"y_condition_1 shape mismatch: expected ({batch_size},), "
+                    )                    
+                y_condition_1_safe = y_condition_1.clone()
+                y_condition_1_safe[~use_label_1] = 0   # ✅ FIX
+                label_1_emb = self.cond_embed_1(y_condition_1_safe)
+                label_1_emb[~use_label_1] = 0.0
+                cond_emb = cond_emb + label_1_emb
+
             if y_condition_2 is not None:
-               if y_condition_2.shape[0] != batch_size:
-                   raise ValueError(
-                   f"y_condition_2 shape mismatch: expected ({batch_size},), "
-                   ) 
-               label_2_emb = self.cond_embed_2(y_condition_2)
-               label_2_emb[~use_label_2] = 0.0 
-               cond_emb = cond_emb + label_2_emb
+                if y_condition_2.shape[0] != batch_size:
+                    raise ValueError(
+                    f"y_condition_2 shape mismatch: expected ({batch_size},), "
+                    )                     
+                y_condition_2_safe = y_condition_2.clone()
+                y_condition_2_safe[~use_label_2] = 0   # ✅ FIX
+                label_2_emb = self.cond_embed_2(y_condition_2_safe)
+                label_2_emb[~use_label_2] = 0.0
+                cond_emb = cond_emb + label_2_emb
 
         # x_cont_t = B C , x_cat_ebt_t = B F D, so here they are combined. First by flattening cat to B, (FxD). So we get B, (FxD) + C
         x = torch.concat((rearrange(x_cat_emb_t, "B F D -> B (F D)"), x_cont_t), dim=-1) 
