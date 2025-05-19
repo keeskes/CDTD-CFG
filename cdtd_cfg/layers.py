@@ -265,16 +265,29 @@ class MLP(nn.Module):
             out_dims[-1], categories, num_cont_features, bias_init=bias_init
         )
 
-    # The dropout_ratio, and the labels are passed to the forward pass of the MLP
-    def forward(self, x_cat_emb_t, x_cont_t, time, cfg = False, y_condition_1=None, y_condition_2=None, dropout_ratio = 1.0):
-        
+    # The dropout_ratio, the labels, and a boolean indicating whether we are fitting or sampling are passed to the forward of the mlp
+    def forward(self, x_cat_emb_t, x_cont_t, time, cfg = False, y_condition_1=None, y_condition_2=None, dropout_ratio = 1.0, sample=False):
         cond_emb = self.time_emb(time)
         if cfg:
             batch_size = x_cont_t.shape[0]
-            
+
+        if sample:
+            print("new sample")
+            if y_condition_1 is not None:
+                label_1_emb = self.cond_embed_1(y_condition_1)
+                cond_emb = cond_emb + label_1_emb
+                print("y_condition_1 is not zero while sampling")
+
+            if y_condition_2 is not None:
+                label_2_emb = self.cond_embed_2(y_condition_2)
+                cond_emb = cond_emb + label_2_emb
+                print("y_condition_2 is not zero while sampling")
+                 
+        else:
+            print("new fit")
             condition_1_ratio = (1 - dropout_ratio)/2
             condition_2_ratio = (1 - dropout_ratio)/2
-            
+
             # We initialize a group mask to indicate what group the obsevation the observation belongs to
             mask = torch.rand(batch_size, device=x_cont_t.device) # Draws a random uniform value for each observation in the batch
 
@@ -287,21 +300,17 @@ class MLP(nn.Module):
             use_label_2 = (mask >= cutoff2)
 
             if y_condition_1 is not None:
-                if y_condition_1.shape[0] != batch_size:
-                    raise ValueError(
-                    f"y_condition_1 shape mismatch: expected ({batch_size},), "
-                    )                    
-                label_1_emb = self.cond_embed_1(y_condition_1)
-                label_1_emb[~use_label_1] = 0.0 # If the mask does not match use_label_1 the embedding is set to 0
+                mask_1 = y_condition_1 == -1  # True where value is -1
+                y_condition_1_fixed = torch.abs(y_condition_1)  # converts -1 to 1, leaves rest unchanged
+                label_1_emb = self.cond_embed_1(y_condition_1_fixed)
+                label_1_emb[mask_1] = 0.0  # zero out embeddings where original was -1
                 cond_emb = cond_emb + label_1_emb
 
             if y_condition_2 is not None:
-                if y_condition_2.shape[0] != batch_size:
-                    raise ValueError(
-                    f"y_condition_2 shape mismatch: expected ({batch_size},), "
-                    )                     
-                label_2_emb = self.cond_embed_2(y_condition_2)
-                label_2_emb[~use_label_2] = 0.0
+                mask_2 = y_condition_2 == -1
+                y_condition_2_fixed = torch.abs(y_condition_2)
+                label_2_emb = self.cond_embed_2(y_condition_2_fixed)
+                label_2_emb[mask_2] = 0.0
                 cond_emb = cond_emb + label_2_emb
 
         x = torch.concat((rearrange(x_cat_emb_t, "B F D -> B (F D)"), x_cont_t), dim=-1) 
