@@ -218,15 +218,6 @@ class MixedTypeDiffusion(nn.Module):
         
         sigma_cat = sigma[:, : self.num_cat_features]
         sigma_cont = sigma[:, self.num_cat_features :]
-
-        #if y_condition_1 is not None:
-        #    print("y_condition_1 (first 10):", y_condition_1[:10].cpu().tolist())
-        #else: 
-        #    print("y_condition_1 is none")
-        #if y_condition_2 is not None:
-        #    print("y_condition_2 (first 10):", y_condition_2[:10].cpu().tolist())
-        #else: 
-        #    print("y_condition_2 is none")
         
         c_in_cat = (
             1 / (self.sigma_data_cat**2 + sigma_cat.unsqueeze(2) ** 2).sqrt()
@@ -355,9 +346,7 @@ class MixedTypeDiffusion(nn.Module):
                 )
                 d_cat_con_2, _ = self.score_interpolation(x_cat_next, cat_logits_2, t_cur) 
                 d_cont_con_2 = (x_cont_next - x_cont_denoised_2.to(torch.float64)) / t_cont_cur 
-                
-                #print("unconditional, label 1, label 2:", x_cont_denoised, x_cont_denoised_1, x_cont_denoised_2)
-                
+                                
                 # The the categorical and continuous score vectors are combined over the unconditional and conditional scores
                 # cfg_scale = 0 we perform unconditional sampling, the higher the value, the more we pull it towards the labels
                 # Here too we blend the 2 labels 50/50, but this could be changed for the same reasons described in loss_fn
@@ -644,7 +633,6 @@ class CDTD:
             else n_batches * [batch_size]
         ) 
 
-        print('hello world')
         x_cat_list = []
         x_cont_list = []
 
@@ -670,10 +658,7 @@ class CDTD:
                 )
                 y_condition_1 = torch.tensor(y_condition_1, device=self.device).long() # NN.embedding expects type long() int as inputs
                 y_condition_2 = torch.tensor(y_condition_2, device=self.device).long()
-                
-                #print("y_condition_1 (first 10):", y_condition_1[:10].cpu().tolist())
-                #print("y_condition_2 (first 10):", y_condition_2[:10].cpu().tolist())
-                
+                                
             else:
                 y_condition_1 = None
                 y_condition_2 = None
