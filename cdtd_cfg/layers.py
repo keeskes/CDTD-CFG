@@ -272,19 +272,15 @@ class MLP(nn.Module):
             batch_size = x_cont_t.shape[0]
 
         if sample:
-            print("new sample")
             if y_condition_1 is not None:
                 label_1_emb = self.cond_embed_1(y_condition_1)
                 cond_emb = cond_emb + label_1_emb
-                print("y_condition_1 is not zero while sampling")
 
             if y_condition_2 is not None:
                 label_2_emb = self.cond_embed_2(y_condition_2)
                 cond_emb = cond_emb + label_2_emb
-                print("y_condition_2 is not zero while sampling")
                  
         else:
-            print("new fit")
             condition_1_ratio = (1 - dropout_ratio)/2
             condition_2_ratio = (1 - dropout_ratio)/2
 
