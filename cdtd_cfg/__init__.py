@@ -21,7 +21,7 @@ class MixedTypeDiffusion(nn.Module):
     def __init__(
         self,
         model, 
-        dim, 
+            dim, 
         categories,
         proportions,
         num_features,
@@ -121,7 +121,7 @@ class MixedTypeDiffusion(nn.Module):
 
         return x_cat_emb_t, x_cont_t
 
-    def loss_fn(self, x_cat, x_cont, u=None, dropout = 0.0, cfg = False, y_condition_1=None, y_condition_2=None):
+    def loss_fn(self, x_cat, x_cont, u=None, cfg = False, y_condition_1=None, y_condition_2=None, dropout=1.0):
         # We added dropout, cfg boolean as well as y_condition_1 and 2 to the loss FN function
         batch = x_cat.shape[0] if x_cat is not None else x_cont.shape[0]
 
@@ -154,18 +154,18 @@ class MixedTypeDiffusion(nn.Module):
             label_2_mask = (random_vals >= dropout + 0.5 * (1 - dropout))
 
             # unconditional, set both to 0
-            y_condition_1[unconditional_mask] = 0
-            y_condition_2[unconditional_mask] = 0
+            y_condition_1[unconditional_mask] = -1
+            y_condition_2[unconditional_mask] = -1
 
             # only pass label 1, set label 2 to 0
-            y_condition_2[label_1_mask] = 0
+            y_condition_2[label_1_mask] = -1
 
             # only pass label 2, set label 1 to 0
-            y_condition_1[label_2_mask] = 0
+            y_condition_1[label_2_mask] = -1
       
         # We now also pass cfg and the masked labels into precondition
         cat_logits, cont_preds = self.precondition(x_cat_emb_t, x_cont_t, u, sigma, 
-                                                   cfg, y_condition_1, y_condition_2) 
+                                                   cfg, y_condition_1, y_condition_2,dropout_ratio=dropout) 
         ce_losses, mse_losses = self.diffusion_loss( 
             x_cat_0, x_cont_0, cat_logits, cont_preds 
         ) 
@@ -208,16 +208,26 @@ class MixedTypeDiffusion(nn.Module):
 
         return losses, sigma
 
-    def precondition(self, x_cat_emb_t, x_cont_t, u, sigma, cfg = False, y_condition_1=None, y_condition_2=None):
+    def precondition(self, x_cat_emb_t, x_cont_t, u, sigma, 
+                     cfg = False, y_condition_1=None, y_condition_2=None, dropout_ratio=1.0, sample=False):
         """
         Improved preconditioning proposed in the paper "Elucidating the Design
         Space of Diffusion-Based Generative Models" (EDM) adjusted for categorical data
         """
-        # Here we have added cfg, and the two labels
+        # Here we have added cfg, the two labels, the dropout ratio, and a boolean indicating if we are sampling or fitting
         
         sigma_cat = sigma[:, : self.num_cat_features]
         sigma_cont = sigma[:, self.num_cat_features :]
 
+        #if y_condition_1 is not None:
+        #    print("y_condition_1 (first 10):", y_condition_1[:10].cpu().tolist())
+        #else: 
+        #    print("y_condition_1 is none")
+        #if y_condition_2 is not None:
+        #    print("y_condition_2 (first 10):", y_condition_2[:10].cpu().tolist())
+        #else: 
+        #    print("y_condition_2 is none")
+        
         c_in_cat = (
             1 / (self.sigma_data_cat**2 + sigma_cat.unsqueeze(2) ** 2).sqrt()
         ) 
@@ -232,9 +242,11 @@ class MixedTypeDiffusion(nn.Module):
             c_noise,
             cfg,
             y_condition_1,
-            y_condition_2        
+            y_condition_2,
+            dropout_ratio=dropout_ratio,
+            sample=sample
         )
-
+        
         assert len(cat_logits) == self.num_cat_features
         assert cont_preds.shape == x_cont_t.shape
 
@@ -281,7 +293,7 @@ class MixedTypeDiffusion(nn.Module):
             if self.num_cont_features > 0
             else cat_latents.shape[0]
         )
-
+        
         u_steps = torch.linspace(
             1, 0, num_steps + 1, device=self.device, dtype=torch.float64
         )
@@ -312,7 +324,8 @@ class MixedTypeDiffusion(nn.Module):
                     sigma=t_cur.to(torch.float32),
                     cfg = cfg,
                     y_condition_1=None,
-                    y_condition_2=None
+                    y_condition_2=None,
+                    sample=True
                 )
                 d_cat_unc, _ = self.score_interpolation(x_cat_next, cat_logits, t_cur) # Unconditional score vectors are safed
                 d_cont_unc = (x_cont_next - x_cont_denoised.to(torch.float64)) / t_cont_cur 
@@ -324,7 +337,8 @@ class MixedTypeDiffusion(nn.Module):
                     sigma=t_cur.to(torch.float32),
                     cfg = cfg,
                     y_condition_1=y_condition_1,
-                    y_condition_2=None
+                    y_condition_2=None,
+                    sample=True
                 )
                 d_cat_con_1, _ = self.score_interpolation(x_cat_next, cat_logits_1, t_cur) 
                 d_cont_con_1 = (x_cont_next - x_cont_denoised_1.to(torch.float64)) / t_cont_cur
@@ -336,10 +350,13 @@ class MixedTypeDiffusion(nn.Module):
                     sigma=t_cur.to(torch.float32),
                     cfg = cfg,
                     y_condition_1=None,
-                    y_condition_2=y_condition_2
+                    y_condition_2=y_condition_2,
+                    sample=True
                 )
                 d_cat_con_2, _ = self.score_interpolation(x_cat_next, cat_logits_2, t_cur) 
                 d_cont_con_2 = (x_cont_next - x_cont_denoised_2.to(torch.float64)) / t_cont_cur 
+                
+                #print("unconditional, label 1, label 2:", x_cont_denoised, x_cont_denoised_1, x_cont_denoised_2)
                 
                 # The the categorical and continuous score vectors are combined over the unconditional and conditional scores
                 # cfg_scale = 0 we perform unconditional sampling, the higher the value, the more we pull it towards the labels
@@ -354,8 +371,9 @@ class MixedTypeDiffusion(nn.Module):
                     u=u_cur.to(torch.float32).repeat((B,)),
                     sigma=t_cur.to(torch.float32),
                     cfg = cfg,
-                    y_condition_1=y_condition_1,
-                    y_condition_2=y_condition_2
+                    y_condition_1=None,
+                    y_condition_2=None,
+                    sample=True
                 )
 
                 d_cat_cur, _ = self.score_interpolation(x_cat_next, cat_logits, t_cur) 
@@ -379,7 +397,8 @@ class MixedTypeDiffusion(nn.Module):
                 sigma=t_cur.to(torch.float32),
                 cfg = cfg,
                 y_condition_1=None,
-                y_condition_2=None
+                y_condition_2=None,
+                sample=True
             )
             probs_unc = self.score_interpolation(x_cat_next, cat_logits_unc, t_final, return_probs=True)
                     
@@ -390,7 +409,8 @@ class MixedTypeDiffusion(nn.Module):
                 sigma=t_cur.to(torch.float32),
                 cfg = cfg,
                 y_condition_1=y_condition_1,
-                y_condition_2=None
+                y_condition_2=None,
+                sample=True                
             )
             probs_1 = self.score_interpolation(x_cat_next, cat_logits_1, t_final, return_probs=True)
 
@@ -401,7 +421,8 @@ class MixedTypeDiffusion(nn.Module):
                 sigma=t_cur.to(torch.float32),
                 cfg = cfg,
                 y_condition_1=None,
-                y_condition_2=y_condition_2
+                y_condition_2=y_condition_2,
+                sample=True                
             )
             probs_2 = self.score_interpolation(x_cat_next, cat_logits_2, t_final, return_probs=True)
 
@@ -420,7 +441,8 @@ class MixedTypeDiffusion(nn.Module):
                 sigma=t_cur.to(torch.float32),
                 cfg = cfg,
                 y_condition_1=None,
-                y_condition_2=None
+                y_condition_2=None,
+                sample=True
             )
 
             probs = self.score_interpolation(
@@ -524,7 +546,7 @@ class CDTD:
         cfg = False,  # cfg, both labels and the dropout ratio during training are added
         y_condition_1=None, 
         y_condition_2=None,
-        dropout = 1
+        dropout_ratio = 1.0
     ):
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -579,7 +601,7 @@ class CDTD:
 
                 # The losses are cmputed using the dropout, cfg and labels
                 losses, _ = self.diff_model.loss_fn(x_cat, x_cont, None,
-                                                    dropout, cfg, y_condition_1=y_cond_1_batch, y_condition_2=y_cond_2_batch) 
+                                                    cfg, y_condition_1=y_cond_1_batch, y_condition_2=y_cond_2_batch,dropout=dropout_ratio) 
                 losses["train_loss"].backward() 
 
                 self.optimizer.step()
@@ -622,6 +644,7 @@ class CDTD:
             else n_batches * [batch_size]
         ) 
 
+        print('hello world')
         x_cat_list = []
         x_cont_list = []
 
@@ -647,12 +670,16 @@ class CDTD:
                 )
                 y_condition_1 = torch.tensor(y_condition_1, device=self.device).long() # NN.embedding expects type long() int as inputs
                 y_condition_2 = torch.tensor(y_condition_2, device=self.device).long()
+                
+                #print("y_condition_1 (first 10):", y_condition_1[:10].cpu().tolist())
+                #print("y_condition_2 (first 10):", y_condition_2[:10].cpu().tolist())
+                
             else:
                 y_condition_1 = None
                 y_condition_2 = None
-            
+                        
             x_cat_gen, x_cont_gen = self.diff_model.sampler(
-                cat_latents, cont_latents, num_steps, cfg, y_condition_1, y_condition_2, cfg_scale
+                cat_latents, cont_latents, num_steps, cfg, y_condition_1=y_condition_1, y_condition_2=y_condition_2, cfg_scale=cfg_scale
             ) # Using the labels and cfg_scale we compute cleaned data 
             x_cat_list.append(x_cat_gen)
             x_cont_list.append(x_cont_gen)
