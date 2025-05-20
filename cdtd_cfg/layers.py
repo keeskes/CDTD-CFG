@@ -269,6 +269,7 @@ class MLP(nn.Module):
     def forward(self, x_cat_emb_t, x_cont_t, time, cfg = False, y_condition_1=None, y_condition_2=None, dropout_ratio = 1.0, sample=False):
         cond_emb = self.time_emb(time)
         x = torch.concat((rearrange(x_cat_emb_t, "B F D -> B (F D)"), x_cont_t), dim=-1)   
+        x = self.proj(x)
         
         if cfg:
             batch_size = x_cont_t.shape[0]
@@ -311,7 +312,7 @@ class MLP(nn.Module):
                     label_2_emb[mask_2] = 0.0
                     cond_emb = cond_emb + label_2_emb
     
-            x = self.proj(x) + cond_emb 
+            x = x + cond_emb 
             
         x = self.fc(x)
         return self.final_layer(x)
