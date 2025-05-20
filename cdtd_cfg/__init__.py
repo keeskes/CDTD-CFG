@@ -492,18 +492,31 @@ class CDTD:
             num_classes_1 = len(np.unique(y_condition_1.numpy()))
             num_classes_2 = len(np.unique(y_condition_2.numpy()))
                     
-        score_model = MLP(
-            self.num_cont_features,
-            self.cat_emb_dim,
-            self.categories,
-            self.proportions, 
-            mlp_emb_dim,
-            mlp_n_layers,
-            mlp_n_units,
-            num_classes_1 = num_classes_1, # The mlp is called using the number of classes per label
-            num_classes_2 = num_classes_2
-        )
+            score_model = MLP(
+                self.num_cont_features,
+                self.cat_emb_dim,
+                self.categories,
+                self.proportions, 
+                mlp_emb_dim,
+                mlp_n_layers,
+                mlp_n_units,
+                num_classes_1 = num_classes_1, # The mlp is called using the number of classes per label
+                num_classes_2 = num_classes_2
+            )
 
+        else:
+            score_model = MLP(
+                self.num_cont_features,
+                self.cat_emb_dim,
+                self.categories,
+                self.proportions, 
+                mlp_emb_dim,
+                mlp_n_layers,
+                mlp_n_units,
+                num_classes_1 = num_classes_1, # The mlp is called using the number of classes per label
+                num_classes_2 = num_classes_2
+            )
+            
         self.diff_model = MixedTypeDiffusion(
             model=score_model,
             dim=self.cat_emb_dim,
