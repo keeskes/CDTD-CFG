@@ -512,9 +512,7 @@ class CDTD:
                 self.proportions, 
                 mlp_emb_dim,
                 mlp_n_layers,
-                mlp_n_units,
-                num_classes_1 = num_classes_1, # The mlp is called using the number of classes per label
-                num_classes_2 = num_classes_2
+                mlp_n_units
             )
             
         self.diff_model = MixedTypeDiffusion(
