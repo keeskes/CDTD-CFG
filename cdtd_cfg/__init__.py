@@ -629,7 +629,7 @@ class CDTD:
     # Furthermore we pass the probabilities within each label, indicating what percentage of each label should be set to a certain category
     # So in our usecase this would be 1 for the missing class-combination feature.
     def sample(self, num_samples, num_steps=200, batch_size=4096, seed=42, 
-               cfg=False, probs_label_1=None, probs_label_2=None, cfg_scale =0.0):
+               cfg=False, probs_matrix=None, cfg_scale =0.0):
         set_seeds(seed, cuda_deterministic=True)
         n_batches, remainder = divmod(num_samples, batch_size) 
         sample_sizes = (
@@ -650,18 +650,24 @@ class CDTD:
                 (num_samples, self.num_cont_features), device=self.device
             )
 
-            if cfg: # Here if cfg is true we create y_condition_1 and 2 vectors indicating the class we condition the sample on
-                y_condition_1 = np.random.choice(
-                    len(probs_label_1),
-                    size=num_samples,
-                    p=probs_label_1
-                )
-                y_condition_2 = np.random.choice(
-                    len(probs_label_2),
-                    size=num_samples,
-                    p=probs_label_2
-                )
-                y_condition_1 = torch.tensor(y_condition_1, device=self.device).long() # NN.embedding expects type long() int as inputs
+            if cfg:
+                # Flatten the joint matrix and build a cumulative distribution (CDF)
+                flat_probs = probs_matrix.flatten()
+                flat_cdf = np.cumsum(flat_probs)
+                print(flat_cdf)
+                flat_cdf[-1] = 1.0  # Ensure last value is exactly 1.0 for numerical stability
+            
+                # Sample uniform random values
+                rand_vals = np.random.rand(num_samples)
+            
+                # Find indices in CDF where each random value falls
+                sampled_indices = np.searchsorted(flat_cdf, rand_vals, side="right")
+            
+                # Map back to (label_1, label_2) index pairs
+                y_condition_1, y_condition_2 = np.unravel_index(sampled_indices, probs_matrix.shape)
+            
+                # Convert to tensors
+                y_condition_1 = torch.tensor(y_condition_1, device=self.device).long()
                 y_condition_2 = torch.tensor(y_condition_2, device=self.device).long()
                                 
             else:
